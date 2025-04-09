@@ -21,65 +21,71 @@
   <!-- Configuración de Propiedades -->
   <properties>
     <java.version>21</java.version>
+    <spring-boot.version>3.2.2</spring-boot.version>
   </properties>
 
   <!-- Dependencias -->
-  <dependencies>
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-dependencies</artifactId>
+        <version>${spring-boot.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
 
-    <!-- Spring Boot Web para manejar solicitudes HTTP -->
+  <dependencies>
+    <!-- Spring Boot Starter Web para endpoints REST -->
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-web</artifactId>
     </dependency>
 
-    <!-- Spring Boot Data JPA para trabajar con bases de datos -->
+    <!-- Spring Boot Starter Data JPA -->
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-data-jpa</artifactId>
     </dependency>
 
+    <!-- Driver de PostgreSQL -->
     <dependency>
       <groupId>org.postgresql</groupId>
       <artifactId>postgresql</artifactId>
       <scope>runtime</scope>
     </dependency>
 
-    <!-- Spring Boot Actuator (Monitoreo del servicio) -->
-    <dependency>
-      <groupId>org.springframework.boot</groupId>
-      <artifactId>spring-boot-starter-actuator</artifactId>
-    </dependency>
-
-    <!-- Lombok (Para reducir código repetitivo en POJOs) -->
+    <!-- Lombok para reducir boilerplate (opcional) -->
     <dependency>
       <groupId>org.projectlombok</groupId>
       <artifactId>lombok</artifactId>
-      <scope>provided</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.projectlombok</groupId>
-      <artifactId>lombok</artifactId>
-      <scope>test</scope>
+      <optional>true</optional>
     </dependency>
 
-    <!-- Spring Boot Test (Para pruebas unitarias) -->
     <dependency>
       <groupId>org.springframework.boot</groupId>
-      <artifactId>spring-boot-starter-test</artifactId>
-      <scope>test</scope>
+      <artifactId>spring-boot-starter-webflux</artifactId>
     </dependency>
 
   </dependencies>
 
-  <!-- Plugins de construcción -->
   <build>
     <plugins>
-      <!-- Plugin de Spring Boot para ejecutar aplicaciones -->
+      <!-- Plugin de Spring Boot -->
       <plugin>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-maven-plugin</artifactId>
       </plugin>
+      <!-- Configuración para compilar con Java 21 -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <configuration>
+          <release>${java.version}</release>
+        </configuration>
+      </plugin>
     </plugins>
   </build>
-
 </project>
