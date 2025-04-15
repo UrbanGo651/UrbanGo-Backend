@@ -1,16 +1,21 @@
-server:
-  port: 8083
-
+# Configuración específica para el perfil 'dev' de driver-service
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/drivers_service_dev
+    url: jdbc:postgresql://localhost:5432/urbango_dev
     username: postgres
     password: sasa
     driver-class-name: org.postgresql.Driver
   jpa:
-    hibernate:
-      ddl-auto: update  # Permite que Hibernate cree la tabla automáticamente
+    show-sql: true
     properties:
       hibernate:
-        dialect: org.hibernate.dialect.PostgreSQLDialect
-    show-sql: true  # Muestra las consultas SQL en la consola
+        default_schema: driver_service_schema # Schema específico
+    hibernate:
+      ddl-auto: validate # O 'update' con cuidado
+
+logging:
+  level:
+    com.urbango.driverservice: DEBUG # Ajusta tu paquete base
+    org.springframework.web: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql: TRACE

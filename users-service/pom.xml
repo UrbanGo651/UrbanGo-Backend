@@ -1,86 +1,96 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
-
   <modelVersion>4.0.0</modelVersion>
 
-  <!-- Identificación del Proyecto -->
-  <groupId>com.urbango</groupId>
-  <artifactId>users-service</artifactId>  <!-- Cambiar según el servicio -->
-  <version>1.0.0</version>
-  <packaging>jar</packaging>
-
-  <!-- Definir que el proyecto usará Spring Boot -->
+  <!-- Asegúrate de tener un Parent POM si gestionas varios módulos -->
+  <!-- Si no, usa el de Spring Boot directamente -->
   <parent>
     <groupId>org.springframework.boot</groupId>
     <artifactId>spring-boot-starter-parent</artifactId>
-    <version>3.2.2</version>
-    <relativePath/>
+    <version>3.2.2</version> <!-- Usa la versión de Spring Boot que estés utilizando -->
+    <relativePath/> <!-- lookup parent from repository -->
   </parent>
 
-  <!-- Configuración de Propiedades -->
+  <groupId>com.urbango</groupId> <!-- Tu group ID -->
+  <artifactId>user-service</artifactId> <!-- El artifact ID de este módulo -->
+  <version>0.0.1-SNAPSHOT</version>
+  <name>user-service</name>
+  <description>Microservicio para gestionar usuarios de UrbanGo</description>
+
   <properties>
-    <java.version>21</java.version>
+    <java.version>21</java.version> <!-- La versión de Java que estás usando -->
+    <!-- Puedes definir otras propiedades/versiones aquí si es necesario -->
   </properties>
 
-  <!-- Dependencias -->
   <dependencies>
-
-    <!-- Spring Boot Web para manejar solicitudes HTTP -->
-    <dependency>
-      <groupId>org.springframework.boot</groupId>
-      <artifactId>spring-boot-starter-web</artifactId>
-    </dependency>
-
-    <!-- Spring Boot Data JPA para trabajar con bases de datos -->
+    <!-- 1. Spring Data JPA: Necesario para @Entity, @Table, @Id, @Column, JpaRepository, etc. -->
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-data-jpa</artifactId>
     </dependency>
 
+    <!-- 2. Spring Web: Aunque la entidad en sí no lo usa, el microservicio probablemente
+         necesitará exponer endpoints REST (@RestController, etc.) -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-web</artifactId>
+    </dependency>
+
+    <!-- 3. Driver PostgreSQL: Para conectar con tu base de datos PostgreSQL -->
     <dependency>
       <groupId>org.postgresql</groupId>
       <artifactId>postgresql</artifactId>
-      <scope>runtime</scope>
+      <scope>runtime</scope> <!-- Es necesario en tiempo de ejecución -->
     </dependency>
 
-    <!-- Spring Boot Actuator (Monitoreo del servicio) -->
+    <!-- 4. Lombok: Para reducir código boilerplate (@Data, @NoArgsConstructor, etc.) -->
+    <dependency>
+      <groupId>org.projectlombok</groupId>
+      <artifactId>lombok</artifactId>
+      <optional>true</optional> <!-- Es opcional en runtime, procesado en compilación -->
+    </dependency>
+
+    <!-- 5. Spring Boot Actuator (Recomendado): Para endpoints de monitoreo y gestión -->
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-actuator</artifactId>
     </dependency>
 
-    <!-- Lombok (Para reducir código repetitivo en POJOs) -->
-    <dependency>
-      <groupId>org.projectlombok</groupId>
-      <artifactId>lombok</artifactId>
-      <scope>provided</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.projectlombok</groupId>
-      <artifactId>lombok</artifactId>
-      <scope>test</scope>
-    </dependency>
-
-    <!-- Spring Boot Test (Para pruebas unitarias) -->
+    <!-- 6. Spring Boot Starter Test (Esencial para pruebas) -->
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-test</artifactId>
-      <scope>test</scope>
+      <scope>test</scope> <!-- Solo necesario para la fase de test -->
     </dependency>
+
+    <!-- Opcional: Dependencias adicionales que podrías necesitar -->
+    <!--
+    <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-validation</artifactId>
+    </dependency>
+    -->
 
   </dependencies>
 
-  <!-- Plugins de construcción -->
   <build>
     <plugins>
-      <!-- Plugin de Spring Boot para ejecutar aplicaciones -->
+      <!-- Plugin de Spring Boot para crear el JAR ejecutable -->
       <plugin>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-maven-plugin</artifactId>
+        <configuration>
+          <!-- Excluir Lombok del JAR final si se desea (ya hizo su trabajo) -->
+          <excludes>
+            <exclude>
+              <groupId>org.projectlombok</groupId>
+              <artifactId>lombok</artifactId>
+            </exclude>
+          </excludes>
+        </configuration>
       </plugin>
     </plugins>
   </build>
 
 </project>
-

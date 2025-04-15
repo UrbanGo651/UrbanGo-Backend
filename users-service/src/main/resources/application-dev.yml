@@ -1,15 +1,26 @@
-server:
-  port: 8080
-
+# Configuración específica para el perfil 'dev' de user-service
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/users_service_dev
-    username: postgres
-    password: sasa
+    url: jdbc:postgresql://localhost:5432/urbango_dev # URL de tu BD local
+    username: postgres # TU USUARIO DE POSTGRES
+    password: sasa       # TU CONTRASEÑA DE POSTGRES
     driver-class-name: org.postgresql.Driver
   jpa:
-    hibernate:
-      ddl-auto: update
+    show-sql: true # Muestra las sentencias SQL generadas en los logs
     properties:
       hibernate:
-        dialect: org.hibernate.dialect.PostgreSQLDialect
+        default_schema: user_service_schema # Schema específico para este servicio
+    hibernate:
+      ddl-auto: validate # Valida que el schema de la BD coincida con las entidades JPA. NO crea ni modifica.
+        # O usa 'update' con cuidado en dev si quieres que Hibernate intente actualizar.
+      # NUNCA uses create o create-drop en producción.
+
+logging:
+  level:
+    com.urbango.userservice: DEBUG # Nivel DEBUG para tus clases en dev (ajusta el paquete)
+    org.springframework.web: DEBUG # Más detalle de Spring Web en dev
+    org.hibernate.SQL: DEBUG       # Ver SQL en DEBUG
+    org.hibernate.type.descriptor.sql: TRACE # Ver parámetros de las queries SQL (muy útil)
+
+# Puedes añadir otras configuraciones específicas de dev aquí
+# por ejemplo, conexión a otros servicios corriendo localmente, etc.

@@ -8,6 +8,7 @@
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
         <module name="rides-service" />
+        <module name="whatsapp-adapter-service" />
         <module name="users-service" />
         <module name="drivers-service" />
         <module name="gateway-service" />
@@ -22,6 +23,7 @@
       <module name="notifications-service" options="-parameters" />
       <module name="rides-service" options="-parameters" />
       <module name="users-service" options="-parameters" />
+      <module name="whatsapp-adapter-service" options="-parameters" />
     </option>
   </component>
 </project>

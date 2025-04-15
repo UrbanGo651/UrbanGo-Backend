@@ -1,19 +1,21 @@
-server:
-  port: 8081
-
+# Configuración específica para el perfil 'dev' de rides-service
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/rides_service_dev
+    url: jdbc:postgresql://localhost:5432/urbango_dev
     username: postgres
     password: sasa
     driver-class-name: org.postgresql.Driver
   jpa:
-    hibernate:
-      ddl-auto: update
+    show-sql: true
     properties:
       hibernate:
-        dialect: org.hibernate.dialect.PostgreSQLDialect
+        default_schema: ride_service_schema # Schema específico
+    hibernate:
+      ddl-auto: validate # O 'update' con cuidado
 
-notifications:
-  service:
-    url: http://localhost:8082
+logging:
+  level:
+    com.urbango.ridesservice: DEBUG # Ajusta tu paquete base
+    org.springframework.web: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql: TRACE
