@@ -6,5 +6,7 @@
     <file url="file://$PROJECT_DIR$/notifications-service/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/rides-service/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/users-service/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/whatsapp-adapter-service/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/whatsapp-adapter-service/src/main/resources" charset="UTF-8" />
   </component>
 </project>

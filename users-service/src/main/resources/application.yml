@@ -1,3 +1,28 @@
+# Configuración común para user-service
 spring:
-  profiles:
-    active: dev
+  application:
+    name: user-service # Nombre de la aplicación
+  jpa:
+    open-in-view: false # Recomendado deshabilitar para evitar problemas de performance
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect # Dialecto de la BD
+        # El default_schema se definirá en el perfil específico
+        format_sql: true # Opcional: Formatea el SQL en los logs para mejor lectura
+    hibernate:
+      # ddl-auto se definirá en el perfil específico (importante!)
+      naming:
+        physical-strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl # Usa snake_case como en SQL
+        implicit-strategy: org.hibernate.boot.model.naming.ImplicitNamingStrategyLegacyJpaImpl
+
+server:
+  port: 8081 # Puerto único para este servicio
+
+logging:
+  level:
+    root: INFO # Nivel de log por defecto
+    # Puedes definir niveles más específicos aquí si aplican a todos los perfiles
+    org.hibernate.SQL: INFO # Nivel para ver SQL generado (puede ir en dev)
+
+# --- Marcador para separar perfiles dentro del mismo archivo (si se quisiera)
+# Pero es mejor usar archivos separados application-{profile}.yml

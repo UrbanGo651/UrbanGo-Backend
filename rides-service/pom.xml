@@ -1,91 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
-
   <modelVersion>4.0.0</modelVersion>
 
-  <!-- Identificación del Proyecto -->
-  <groupId>com.urbango</groupId>
-  <artifactId>rides-service</artifactId>  <!-- Cambiar según el servicio -->
-  <version>1.0.0</version>
-  <packaging>jar</packaging>
-
-  <!-- Definir que el proyecto usará Spring Boot -->
+  <!-- Usar el parent POM de Spring Boot -->
   <parent>
     <groupId>org.springframework.boot</groupId>
     <artifactId>spring-boot-starter-parent</artifactId>
-    <version>3.2.2</version>
-    <relativePath/>
+    <version>3.2.2</version> <!-- Asegúrate que esta versión coincide con los otros servicios -->
+    <relativePath/> <!-- lookup parent from repository -->
   </parent>
+
+  <!-- Identificación del Proyecto -->
+  <groupId>com.urbango</groupId> <!-- Tu group ID -->
+  <artifactId>rides-service</artifactId>   <!-- <<< ID de este módulo >>> -->
+  <version>0.0.1-SNAPSHOT</version> <!-- Versión consistente -->
+  <name>rides-service</name>
+  <description>Microservicio para gestionar viajes/servicios de UrbanGo</description> <!-- <<< Descripción específica >>> -->
 
   <!-- Configuración de Propiedades -->
   <properties>
-    <java.version>21</java.version>
-    <spring-boot.version>3.2.2</spring-boot.version>
+    <java.version>21</java.version> <!-- Versión de Java -->
   </properties>
 
-  <!-- Dependencias -->
-  <dependencyManagement>
-    <dependencies>
-      <dependency>
-        <groupId>org.springframework.boot</groupId>
-        <artifactId>spring-boot-dependencies</artifactId>
-        <version>${spring-boot.version}</version>
-        <type>pom</type>
-        <scope>import</scope>
-      </dependency>
-    </dependencies>
-  </dependencyManagement>
-
+  <!-- Dependencias (Son las mismas que drivers-service en este momento) -->
   <dependencies>
-    <!-- Spring Boot Starter Web para endpoints REST -->
-    <dependency>
-      <groupId>org.springframework.boot</groupId>
-      <artifactId>spring-boot-starter-web</artifactId>
-    </dependency>
-
-    <!-- Spring Boot Starter Data JPA -->
+    <!-- Spring Boot Data JPA -->
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-data-jpa</artifactId>
     </dependency>
 
-    <!-- Driver de PostgreSQL -->
+    <!-- Spring Boot Web -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-web</artifactId>
+    </dependency>
+
+    <!-- Driver PostgreSQL -->
     <dependency>
       <groupId>org.postgresql</groupId>
       <artifactId>postgresql</artifactId>
       <scope>runtime</scope>
     </dependency>
 
-    <!-- Lombok para reducir boilerplate (opcional) -->
+    <!-- Lombok -->
     <dependency>
       <groupId>org.projectlombok</groupId>
       <artifactId>lombok</artifactId>
       <optional>true</optional>
     </dependency>
 
+    <!-- Spring Boot Actuator -->
     <dependency>
       <groupId>org.springframework.boot</groupId>
-      <artifactId>spring-boot-starter-webflux</artifactId>
+      <artifactId>spring-boot-starter-actuator</artifactId>
     </dependency>
 
+    <!-- Spring Boot Test -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-test</artifactId>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 
+  <!-- Plugins de construcción -->
   <build>
     <plugins>
-      <!-- Plugin de Spring Boot -->
+      <!-- Plugin de Spring Boot (con exclusión de Lombok) -->
       <plugin>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-maven-plugin</artifactId>
-      </plugin>
-      <!-- Configuración para compilar con Java 21 -->
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-compiler-plugin</artifactId>
         <configuration>
-          <release>${java.version}</release>
+          <excludes>
+            <exclude>
+              <groupId>org.projectlombok</groupId>
+              <artifactId>lombok</artifactId>
+            </exclude>
+          </excludes>
         </configuration>
       </plugin>
     </plugins>
   </build>
+
 </project>
