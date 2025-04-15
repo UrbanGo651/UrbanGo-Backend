@@ -1,5 +1,6 @@
 package com.urbango.driverservice.entity;
 
+import com.urbango.driverservice.enums.DriverStatus;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -20,6 +21,7 @@ import java.util.UUID;
 public class Driver {
 
     @Id
+    @GeneratedValue(strategy = GenerationType.AUTO)
     @Column(updatable = false, nullable = false)
     private UUID id;
 
@@ -29,8 +31,9 @@ public class Driver {
     @Column(name = "full_name", nullable = false)
     private String fullName;
 
+    @Enumerated(EnumType.STRING) // Mapear a VARCHAR en BD
     @Column(name = "driver_status", nullable = false, length = 50)
-    private String driverStatus = "PENDING_APPROVAL"; // Valor por defecto
+    private DriverStatus driverStatus = DriverStatus.PENDING_APPROVAL; // Usar Enum para valor por defecto
 
     @Column(name = "approved_by") // Puede ser null inicialmente
     private UUID approvedBy;
