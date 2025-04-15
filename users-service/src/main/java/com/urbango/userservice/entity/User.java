@@ -18,6 +18,7 @@ import java.util.UUID;
 public class User {
 
     @Id
+    @GeneratedValue(strategy = GenerationType.AUTO)
     // La BD genera el UUID con DEFAULT, no necesitamos @GeneratedValue explícito aquí.
     // Hibernate debería detectarlo. Si da problemas al guardar, prueba con @GeneratedValue(strategy = GenerationType.AUTO)
     @Column(updatable = false, nullable = false)
