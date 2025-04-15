@@ -1,5 +1,7 @@
 package com.urbango.driverservice.entity;
 
+import com.urbango.driverservice.enums.DocumentType;
+import com.urbango.driverservice.enums.VerificationStatus;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -21,6 +23,7 @@ import java.util.UUID;
 public class DriverDocument {
 
     @Id
+    @GeneratedValue(strategy = GenerationType.AUTO)
     @Column(updatable = false, nullable = false)
     private UUID id;
 
@@ -31,14 +34,16 @@ public class DriverDocument {
     @JoinColumn(name = "driver_id", nullable = false)
     private Driver driver;
 
+    @Enumerated(EnumType.STRING) // Mapear a VARCHAR
     @Column(name = "document_type", nullable = false, length = 100)
-    private String documentType; // Considerar Enum (LICENSE, JUDICIAL_RECORD, etc.)
+    private DocumentType documentType;
 
     @Column(name = "file_reference", columnDefinition = "TEXT") // Mapea a TEXT de PostgreSQL
     private String fileReference;
 
+    @Enumerated(EnumType.STRING) // Mapear a VARCHAR
     @Column(name = "verification_status", nullable = false, length = 50)
-    private String verificationStatus = "PENDING"; // Considerar Enum (PENDING, VERIFIED, REJECTED)
+    private VerificationStatus verificationStatus = VerificationStatus.PENDING;
 
     @Column(name = "verifier_notes", columnDefinition = "TEXT")
     private String verifierNotes;

@@ -1,4 +1,4 @@
-package com.urbango.userservice.dto;
+package com.urbango.driverservice.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
@@ -10,19 +10,20 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class CreateUserRequestDto {
+public class RegisterDriverRequestDto {
 
     @NotBlank(message = "El número de WhatsApp no puede estar vacío")
-    // Añadir Pattern para validar el formato E.164 de Colombia
     @Pattern(regexp = "^\\+57\\d{10}$", message = "El formato del número de WhatsApp debe ser +57 seguido de 10 dígitos (ej: +573001234567)")
-    // Size ahora es redundante por el Pattern, pero no hace daño dejarla o quitarla
-    // @Size(min = 13, max = 13, message = "El número de WhatsApp debe tener exactamente 13 caracteres incluyendo +57")
     private String whatsappNumber;
 
     @NotBlank(message = "El nombre completo no puede estar vacío")
     @Size(max = 255, message = "El nombre completo no puede exceder los 255 caracteres")
     private String fullName;
 
-    // No incluimos id, status, createdAt, updatedAt porque son generados/manejados
-    // por el servidor al crear el usuario.
+    // Podríamos añadir el tipo de vehículo inicial aquí si el flujo lo requiere
+    // @NotBlank(message = "El tipo de vehículo inicial es requerido")
+    // private String initialVehicleType; // Ej: "CAR", "MOTORCYCLE"
+
+    // Nota: La placa, documentos, etc., se añadirán en pasos posteriores,
+    // este DTO es solo para el registro inicial básico.
 }

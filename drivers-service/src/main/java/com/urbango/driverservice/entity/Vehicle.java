@@ -1,5 +1,6 @@
 package com.urbango.driverservice.entity;
 
+import com.urbango.driverservice.enums.VehicleType;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -21,6 +22,7 @@ import java.util.UUID;
 public class Vehicle {
 
     @Id
+    @GeneratedValue(strategy = GenerationType.AUTO)
     @Column(updatable = false, nullable = false)
     private UUID id;
 
@@ -35,8 +37,9 @@ public class Vehicle {
     @Column(name = "license_plate", unique = true, nullable = false, length = 10)
     private String licensePlate;
 
+    @Enumerated(EnumType.STRING) // Mapear a VARCHAR
     @Column(name = "vehicle_type", nullable = false, length = 50)
-    private String vehicleType; // Considerar usar un Enum aquí (CAR, MOTORCYCLE, BICYCLE)
+    private VehicleType vehicleType;
 
     @Column(length = 100)
     private String model;
