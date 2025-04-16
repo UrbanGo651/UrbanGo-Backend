@@ -181,6 +181,44 @@ public class DriverServiceImpl implements DriverService {
                 .collect(Collectors.toList());
     }
 
+    @Override
+    @Transactional
+    public VehicleDto addVehicleToDriver(UUID driverId, CreateVehicleRequestDto vehicleDto) {
+        log.info("Intentando añadir vehículo con placa {} al conductor {}", vehicleDto.getLicensePlate(), driverId);
+
+        // 1. Buscar al conductor
+        Driver driver = driverRepository.findById(driverId)
+                .orElseThrow(() -> new EntityNotFoundException("Conductor no encontrado con ID: " + driverId));
+
+        // 2. Validar si la placa ya existe en el sistema (las placas deben ser únicas)
+        String licensePlateUpper = vehicleDto.getLicensePlate().toUpperCase(); // Guardar en mayúsculas por consistencia
+        vehicleRepository.findByLicensePlate(licensePlateUpper).ifPresent(existingVehicle -> {
+            log.warn("Intento de añadir vehículo con placa existente: {}", licensePlateUpper);
+            throw new IllegalArgumentException("La placa '" + licensePlateUpper + "' ya está registrada.");
+        });
+
+        // 3.Crear la nueva entidad Vehículo
+        Vehicle newVehicle = new Vehicle();
+        newVehicle.setLicensePlate(licensePlateUpper);
+        newVehicle.setVehicleType(vehicleDto.getVehicleType()); // Enum
+        newVehicle.setModel(vehicleDto.getModel());
+        newVehicle.setColor(vehicleDto.getColor());
+        newVehicle.setSoatExpiryDate(vehicleDto.getSoatExpiryDate());
+        newVehicle.setTechnoExpiryDate(vehicleDto.getTechnoExpiryDate());
+        newVehicle.setActive(true); // Por defecto, un vehículo nuevo está activo
+
+        // 4. *** Asociar el vehículo con el conductor ***
+        newVehicle.setDriver(driver);
+        // Opcionalmente, si tienes el metodo helper en Driver: driver.addVehicle(newVehicle);
+
+        // 5. Guardar el nuevo vehículo
+        Vehicle savedVehicle = vehicleRepository.save(newVehicle);
+        log.info("Vehículo con ID {} añadido exitosamente al conductor {}", savedVehicle.getId(), driverId);
+
+        // 6. Mapear la entidad guardada a DTO y devolver
+        return mapVehicleToDto(savedVehicle); // Usa el método auxiliar que ya teníamos
+    }
+
     // --- Métodos Auxiliares Internos ---
 
     /**

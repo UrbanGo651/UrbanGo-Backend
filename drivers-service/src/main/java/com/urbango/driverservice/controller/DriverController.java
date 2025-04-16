@@ -1,7 +1,9 @@
 package com.urbango.driverservice.controller;
 
+import com.urbango.driverservice.dto.CreateVehicleRequestDto;
 import com.urbango.driverservice.dto.DriverDto;
 import com.urbango.driverservice.dto.RegisterDriverRequestDto;
+import com.urbango.driverservice.dto.VehicleDto;
 import com.urbango.driverservice.service.DriverService;
 import jakarta.persistence.EntityNotFoundException; // Importar excepción
 import jakarta.validation.Valid;
@@ -169,6 +171,34 @@ public class DriverController {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Error interno al procesar la solicitud", e);
         }
     }
+
+    /**
+     * Endpoint para añadir un vehículo a un conductor existente.
+     * POST /api/v1/drivers/{driverId}/vehicles
+     * Body: { "licensePlate": "...", "vehicleType": "MOTORCYCLE", ... }
+     */
+    @PostMapping("/{driverId}/vehicles")
+    public ResponseEntity<VehicleDto> addVehicle(
+            @PathVariable UUID driverId,
+            @Valid @RequestBody CreateVehicleRequestDto requestDto) {
+
+        log.info("POST /api/v1/drivers/{}/vehicles - Solicitud recibida: {}", driverId, requestDto);
+        try {
+            VehicleDto createdVehicle = driverService.addVehicleToDriver(driverId, requestDto);
+            // Devolvemos 201 Created y el vehículo creado
+            return ResponseEntity.status(HttpStatus.CREATED).body(createdVehicle);
+        } catch (EntityNotFoundException e) { // Conductor no encontrado
+            log.warn("Error al añadir vehículo - Conductor no encontrado: {}", e.getMessage());
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage(), e);
+        } catch (IllegalArgumentException e) { // Placa duplicada
+            log.warn("Error al añadir vehículo - Conflicto: {}", e.getMessage());
+            throw new ResponseStatusException(HttpStatus.CONFLICT, e.getMessage(), e);
+        } catch (Exception e) {
+            log.error("Error inesperado al añadir vehículo al conductor {}", driverId, e);
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Error interno al procesar la solicitud.", e);
+        }
+    }
+
 
     // --- Endpoints Futuros (para añadir vehículos, documentos) ---
     // @PostMapping("/{id}/vehicles") ...

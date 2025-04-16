@@ -3,25 +3,16 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
-  <!-- Asegúrate de tener un Parent POM si gestionas varios módulos -->
-  <!-- Si no, usa el de Spring Boot directamente -->
+  <!-- *** CAMBIO PRINCIPAL: Apunta al nuevo padre *** -->
   <parent>
-    <groupId>org.springframework.boot</groupId>
-    <artifactId>spring-boot-starter-parent</artifactId>
-    <version>3.2.2</version> <!-- Usa la versión de Spring Boot que estés utilizando -->
-    <relativePath/> <!-- lookup parent from repository -->
+    <groupId>com.urbango</groupId>
+    <artifactId>urbango-backend</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
   </parent>
 
-  <groupId>com.urbango</groupId> <!-- Tu group ID -->
-  <artifactId>user-service</artifactId> <!-- El artifact ID de este módulo -->
-  <version>0.0.1-SNAPSHOT</version>
-  <name>user-service</name>
-  <description>Microservicio para gestionar usuarios de UrbanGo</description>
-
-  <properties>
-    <java.version>21</java.version> <!-- La versión de Java que estás usando -->
-    <!-- Puedes definir otras propiedades/versiones aquí si es necesario -->
-  </properties>
+  <artifactId>users-service</artifactId>
+  <name>users-service</name>
+  <description>microservicio para gestionar usuarios de UrbanGo</description>
 
   <dependencies>
     <!-- 1. Spring Data JPA: Necesario para @Entity, @Table, @Id, @Column, JpaRepository, etc. -->

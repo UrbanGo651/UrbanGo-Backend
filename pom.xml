@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!-- Hereda de Spring Boot para obtener gestión de dependencias y plugins por defecto -->
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>3.2.2</version> <!-- La versión de Spring Boot que usas -->
+        <relativePath/> <!-- Busca el parent en el repositorio, no localmente -->
+    </parent>
+
+    <!-- Coordenadas de este proyecto padre -->
+    <groupId>com.urbango</groupId>
+    <artifactId>urbango-backend</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+    <packaging>pom</packaging> <!-- *** MUY IMPORTANTE: Indica que es un POM agregador/padre *** -->
+    <name>urbango-backend</name>
+    <description>Proyecto padre para los microservicios de UrbanGo</description>
+
+    <!-- Módulos hijos (los directorios de tus microservicios) -->
+    <modules>
+        <module>users-service</module>
+        <module>drivers-service</module>
+        <module>rides-service</module>
+        <module>gateway-service</module>         <!-- Asumiendo que es un módulo Maven -->
+        <module>notifications-service</module>    <!-- Asumiendo que es un módulo Maven -->
+        <module>whatsapp-adapter-service</module> <!-- Asumiendo que es un módulo Maven -->
+        <!-- <module>common</module> -->          <!-- Descomenta si tienes un módulo common -->
+    </modules>
+
+    <!-- Propiedades comunes para todos los módulos -->
+    <properties>
+        <java.version>21</java.version>
+        <spring-cloud.version>2023.0.0</spring-cloud.version> <!-- Versión de Spring Cloud compatible con SB 3.2.x -->
+        <!-- Puedes definir aquí otras versiones comunes -->
+        <!-- <lombok.version>1.18.30</lombok.version> -->
+        <!-- <postgresql.version>42.6.0</postgresql.version> -->
+    </properties>
+
+    <!-- Gestión centralizada de VERSIONES de dependencias -->
+    <!-- Los módulos hijos declararán estas dependencias SIN especificar la versión -->
+    <dependencyManagement>
+        <dependencies>
+            <!-- Importar el Bill of Materials (BOM) de Spring Cloud -->
+            <dependency>
+                <groupId>org.springframework.cloud</groupId>
+                <artifactId>spring-cloud-dependencies</artifactId>
+                <version>${spring-cloud.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
+            <!-- Gestionar otras dependencias comunes (opcional, pero buena práctica) -->
+            <!-- Si no pones la versión aquí, los hijos usarán la gestionada por spring-boot-starter-parent si existe -->
+            <!-- <dependency>
+                <groupId>org.projectlombok</groupId>
+                <artifactId>lombok</artifactId>
+                <version>${lombok.version}</version>
+                <optional>true</optional>
+            </dependency>
+            <dependency>
+                <groupId>org.postgresql</groupId>
+                <artifactId>postgresql</artifactId>
+                <version>${postgresql.version}</version>
+            </dependency> -->
+        </dependencies>
+    </dependencyManagement>
+
+    <!-- Gestión centralizada de la CONFIGURACIÓN de plugins -->
+    <build>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>org.springframework.boot</groupId>
+                    <artifactId>spring-boot-maven-plugin</artifactId>
+                    <!-- La versión la gestiona spring-boot-starter-parent -->
+                    <configuration>
+                        <!-- Configuración común, como excluir Lombok -->
+                        <excludes>
+                            <exclude>
+                                <groupId>org.projectlombok</groupId>
+                                <artifactId>lombok</artifactId>
+                            </exclude>
+                        </excludes>
+                    </configuration>
+                </plugin>
+                <!-- Puedes gestionar otros plugins comunes aquí -->
+            </plugins>
+        </pluginManagement>
+        <!-- Es necesario declarar el plugin aquí también para que se ejecute -->
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>

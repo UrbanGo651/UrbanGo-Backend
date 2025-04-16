@@ -1,7 +1,9 @@
 package com.urbango.driverservice.service;
 
+import com.urbango.driverservice.dto.CreateVehicleRequestDto;
 import com.urbango.driverservice.dto.DriverDto;
 import com.urbango.driverservice.dto.RegisterDriverRequestDto;
+import com.urbango.driverservice.dto.VehicleDto;
 
 import java.util.List;
 import java.util.Optional;
@@ -71,6 +73,16 @@ public interface DriverService {
      */
     List<DriverDto> findAvailableDrivers(String vehicleType);
 
+
+    /**
+     * Añade un nuevo vehículo a un conductor existente.
+     * @param driverId El ID del conductor al que se añade el vehículo.
+     * @param vehicleDto DTO con los datos del vehículo a crear.
+     * @return El DTO del vehículo recién creado.
+     * @throws jakarta.persistence.EntityNotFoundException si el conductor no existe.
+     * @throws IllegalArgumentException si la placa ya existe.
+     */
+    VehicleDto addVehicleToDriver(UUID driverId, CreateVehicleRequestDto vehicleDto);
 
     // --- Métodos Futuros (a añadir cuando se necesiten) ---
     /*
