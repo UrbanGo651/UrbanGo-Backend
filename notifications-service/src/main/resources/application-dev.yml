@@ -1,0 +1,15 @@
+# En desarrollo, podemos sobrescribir si es necesario, pero es mejor
+# configurar las variables de entorno directamente.
+# Este archivo podría estar vacío si confiamos en las variables de entorno
+# o en los valores por defecto de application.yml
+
+# Ejemplo si quisieras forzar algo en dev:
+# twilio:
+#   accountSid: AC_TU_SID_DE_PRUEBAS
+#   authToken: TU_TOKEN_DE_PRUEBAS
+#   whatsappNumber: whatsapp:+14155238886 # Sandbox
+
+logging:
+  level:
+    com.urbango.notificationservice: DEBUG # Log detallado de nuestro servicio en dev
+    # com.twilio.http.TwilioRestClient: DEBUG # Descomentar para ver logs detallados de Twilio

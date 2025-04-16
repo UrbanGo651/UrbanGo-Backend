@@ -1,0 +1,28 @@
+spring:
+  application:
+    name: notifications-service
+
+server:
+  port: 8086 # O el puerto que estés usando
+
+# --- Configuración de Twilio ---
+# Los valores reales DEBEN configurarse mediante variables de entorno.
+# Los valores después de ':' son defaults SOLO para referencia o si la variable no está definida.
+twilio:
+  accountSid: ${TWILIO_ACCOUNT_SID:ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxx} # Reemplaza con tu SID REAL vía variable de entorno
+  authToken: ${TWILIO_AUTH_TOKEN:your_twilio_auth_token}           # Reemplaza con tu Token REAL vía variable de entorno
+  whatsappNumber: ${TWILIO_WHATSAPP_NUMBER:whatsapp:+14155238886} # Número Sandbox por defecto, VERIFICA EL TUYO y usa variable de entorno
+
+# --- URLs de otros servicios ---
+# Apuntan a localhost por defecto para desarrollo local
+services:
+  user:
+    url: ${USER_SERVICE_URL:http://localhost:8081}
+  driver:
+    url: ${DRIVER_SERVICE_URL:http://localhost:8087}
+
+logging:
+  level:
+    root: INFO
+    com.twilio.http.TwilioRestClient: WARN # Menos verbose por defecto
+    # Puedes añadir niveles específicos para tus paquetes

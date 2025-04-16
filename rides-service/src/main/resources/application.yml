@@ -14,7 +14,7 @@ spring:
         implicit-strategy: org.hibernate.boot.model.naming.ImplicitNamingStrategyLegacyJpaImpl
 
 server:
-  port: 8086 # Puerto único diferente
+  port: 8088 # Puerto único diferente
 
 logging:
   level:
