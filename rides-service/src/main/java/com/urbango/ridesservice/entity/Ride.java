@@ -1,6 +1,8 @@
 package com.urbango.ridesservice.entity;
 
-import jakarta.persistence.*;
+import com.urbango.ridesservice.enums.RideStatus; // Importar Enum
+import com.urbango.ridesservice.enums.ServiceType; // Importar Enum
+import jakarta.persistence.*; // Importar anotaciones JPA
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
@@ -18,23 +20,26 @@ import java.util.UUID;
 public class Ride {
 
     @Id
+    @GeneratedValue(strategy = GenerationType.AUTO)
     @Column(updatable = false, nullable = false)
     private UUID id;
 
     @Column(name = "user_id", nullable = false)
-    private UUID userId; // Id del usuario (de user-service). No hay FK directa.
+    private UUID userId;
 
-    @Column(name = "assigned_driver_id") // Puede ser null hasta que se asigne
-    private UUID assignedDriverId; // Id del conductor (de driver-service). No hay FK directa.
+    @Column(name = "assigned_driver_id")
+    private UUID assignedDriverId;
 
-    @Column(name = "assigned_vehicle_id") // Puede ser null hasta que se asigne
-    private UUID assignedVehicleId; // Id del vehículo (de driver-service). No hay FK directa.
+    @Column(name = "assigned_vehicle_id")
+    private UUID assignedVehicleId;
 
+    @Enumerated(EnumType.STRING) // Mapear a VARCHAR
     @Column(name = "service_type", nullable = false, length = 50)
-    private String serviceType; // Considerar Enum (CAR, MOTORCYCLE, DELIVERY)
+    private ServiceType serviceType; // <<< Tipo cambiado a Enum
 
+    @Enumerated(EnumType.STRING) // Mapear a VARCHAR
     @Column(name = "ride_status", nullable = false, length = 50)
-    private String rideStatus = "REQUESTED"; // Considerar Enum (REQUESTED, ASSIGNED, COMPLETED, CANCELLED...)
+    private RideStatus rideStatus = RideStatus.REQUESTED; // <<< Tipo cambiado a Enum y valor por defecto
 
     @Column(name = "origin_details", columnDefinition = "TEXT")
     private String originDetails;

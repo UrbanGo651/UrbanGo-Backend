@@ -10,6 +10,7 @@
         <option value="$PROJECT_DIR$/gateway-service/pom.xml" />
         <option value="$PROJECT_DIR$/notifications-service/pom.xml" />
         <option value="$PROJECT_DIR$/whatsapp-adapter-service/pom.xml" />
+        <option value="$PROJECT_DIR$/pom.xml" />
       </list>
     </option>
   </component>

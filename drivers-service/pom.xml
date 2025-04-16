@@ -4,25 +4,16 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
-  <!-- Usar el parent POM de Spring Boot -->
+  <!-- *** CAMBIO PRINCIPAL: Apunta al nuevo padre *** -->
   <parent>
-    <groupId>org.springframework.boot</groupId>
-    <artifactId>spring-boot-starter-parent</artifactId>
-    <version>3.2.2</version> <!-- Asegúrate que esta versión coincide con la de user-service -->
-    <relativePath/> <!-- lookup parent from repository -->
+    <groupId>com.urbango</groupId>
+    <artifactId>urbango-backend</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
   </parent>
 
-  <!-- Identificación del Proyecto -->
-  <groupId>com.urbango</groupId> <!-- Tu group ID -->
-  <artifactId>drivers-service</artifactId> <!-- ID de este módulo -->
-  <version>0.0.1-SNAPSHOT</version> <!-- Versión consistente -->
+  <artifactId>drivers-service</artifactId>
   <name>drivers-service</name>
   <description>Microservicio para gestionar conductores y vehículos de UrbanGo</description>
-
-  <!-- Configuración de Propiedades -->
-  <properties>
-    <java.version>21</java.version> <!-- Versión de Java -->
-  </properties>
 
   <!-- Dependencias -->
   <dependencies>
