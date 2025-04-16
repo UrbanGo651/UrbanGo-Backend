@@ -1,83 +1,65 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
-
   <modelVersion>4.0.0</modelVersion>
 
-  <!-- Identificación del Proyecto -->
-  <groupId>com.urbango</groupId>
-  <artifactId>notifications-service</artifactId>  <!-- Cambiar según el servicio -->
-  <version>1.0.0</version>
-  <packaging>jar</packaging>
-
-  <!-- Definir que el proyecto usará Spring Boot -->
   <parent>
-    <groupId>org.springframework.boot</groupId>
-    <artifactId>spring-boot-starter-parent</artifactId>
-    <version>3.2.2</version>
-    <relativePath/>
+    <groupId>com.urbango</groupId>
+    <artifactId>urbango-backend</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
   </parent>
 
-  <!-- Configuración de Propiedades -->
-  <properties>
-    <java.version>21</java.version>
-  </properties>
+  <artifactId>notifications-service</artifactId> <!-- Plural -->
+  <name>notifications-service</name>
+  <description>Microservicio para gestionar y enviar notificaciones (WhatsApp vía Twilio)</description>
 
-  <!-- Dependencias -->
   <dependencies>
-
-    <!-- Spring Boot Web para manejar solicitudes HTTP -->
+    <!-- Spring Boot Web (para REST Controller) -->
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-web</artifactId>
     </dependency>
-
-    <!-- Spring Boot Data JPA para trabajar con bases de datos -->
+    <!-- Spring Cloud OpenFeign (para llamar a otros servicios) -->
     <dependency>
-      <groupId>org.springframework.boot</groupId>
-      <artifactId>spring-boot-starter-data-jpa</artifactId>
+      <groupId>org.springframework.cloud</groupId>
+      <artifactId>spring-cloud-starter-openfeign</artifactId>
     </dependency>
-
+    <!-- Twilio SDK -->
     <dependency>
-      <groupId>org.postgresql</groupId>
-      <artifactId>postgresql</artifactId>
-      <scope>runtime</scope>
+      <groupId>com.twilio.sdk</groupId>
+      <artifactId>twilio</artifactId>
+      <version>10.6.10</version> <!-- La versión que te funcionó -->
     </dependency>
-
-    <!-- Spring Boot Actuator (Monitoreo del servicio) -->
+    <!-- Lombok (boilerplate) -->
+    <dependency>
+      <groupId>org.projectlombok</groupId>
+      <artifactId>lombok</artifactId>
+      <optional>true</optional>
+    </dependency>
+    <!-- Spring Boot Actuator (monitoreo) -->
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-actuator</artifactId>
     </dependency>
-
-    <!-- Lombok (Para reducir código repetitivo en POJOs) -->
+    <!-- Spring Boot Validation (para validar DTOs) -->
     <dependency>
-      <groupId>org.projectlombok</groupId>
-      <artifactId>lombok</artifactId>
-      <scope>provided</scope>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-validation</artifactId>
     </dependency>
-    <dependency>
-      <groupId>org.projectlombok</groupId>
-      <artifactId>lombok</artifactId>
-      <scope>test</scope>
-    </dependency>
-
-    <!-- Spring Boot Test (Para pruebas unitarias) -->
+    <!-- Spring Boot Test -->
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-test</artifactId>
       <scope>test</scope>
     </dependency>
-
   </dependencies>
 
-  <!-- Plugins de construcción -->
   <build>
     <plugins>
-      <!-- Plugin de Spring Boot para ejecutar aplicaciones -->
       <plugin>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-maven-plugin</artifactId>
+        <!-- Configuración heredada del padre -->
       </plugin>
     </plugins>
   </build>
