@@ -1,82 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
-
     <modelVersion>4.0.0</modelVersion>
 
-    <!-- Identificación del Proyecto -->
-    <groupId>com.urbango</groupId>
-    <artifactId>whatsapp-adapter-service</artifactId>  <!-- Cambiar según el servicio -->
-    <version>1.0.0</version>
-    <packaging>jar</packaging>
-
-    <!-- Definir que el proyecto usará Spring Boot -->
     <parent>
-        <groupId>org.springframework.boot</groupId>
-        <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.2.2</version>
-        <relativePath/>
+        <groupId>com.urbango</groupId>
+        <artifactId>urbango-backend</artifactId>
+        <version>0.0.1-SNAPSHOT</version>
     </parent>
 
-    <!-- Configuración de Propiedades -->
-    <properties>
-        <java.version>21</java.version>
-        <spring-boot.version>3.2.2</spring-boot.version>
-    </properties>
+    <artifactId>whatsapp-adapter-service</artifactId> <!-- Plural si prefieres -->
+    <name>whatsapp-adapter-service</name>
+    <description>Microservicio adaptador para recibir y procesar mensajes de WhatsApp vía Twilio</description>
 
-
-    <!-- Dependencias -->
     <dependencies>
-
-        <!-- Spring Boot Web para manejar solicitudes HTTP -->
+        <!-- Spring Web (para REST Controller - recibir webhooks) -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
-
-        <!-- Spring Boot Data JPA para trabajar con bases de datos -->
+        <!-- Spring Cloud OpenFeign (para llamar a otros servicios) -->
         <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-data-jpa</artifactId>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-openfeign</artifactId>
         </dependency>
 
+        <!-- Twilio SDK (Podría ser útil para validar firmas o enviar respuestas rápidas si decides hacerlo aquí) -->
         <dependency>
-            <groupId>org.postgresql</groupId>
-            <artifactId>postgresql</artifactId>
-            <scope>runtime</scope>
+            <groupId>com.twilio.sdk</groupId>
+            <artifactId>twilio</artifactId>
+            <version>10.6.10</version> <!-- Usa la misma versión que en notifications-service -->
         </dependency>
 
-        <!-- Spring Boot Actuator (Monitoreo del servicio) -->
+        <!-- Lombok -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <!-- Actuator -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
-
-        <!-- Lombok (Para reducir código repetitivo en POJOs) -->
+        <!-- Validation -->
         <dependency>
-            <groupId>org.projectlombok</groupId>
-            <artifactId>lombok</artifactId>
-            <scope>provided</scope>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
         </dependency>
-        <dependency>
-            <groupId>org.projectlombok</groupId>
-            <artifactId>lombok</artifactId>
-            <scope>test</scope>
-        </dependency>
-
-        <!-- Spring Boot Test (Para pruebas unitarias) -->
+        <!-- Test -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
-
+        <dependency>
+            <groupId>io.github.openfeign</groupId>
+            <artifactId>feign-hc5</artifactId> <!-- Cliente Feign para Apache HttpClient 5 -->
+            <!-- La versión usualmente la gestiona el BOM de Spring Cloud -->
+        </dependency>
     </dependencies>
 
-    <!-- Plugins de construcción -->
     <build>
         <plugins>
-            <!-- Plugin de Spring Boot para ejecutar aplicaciones -->
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>

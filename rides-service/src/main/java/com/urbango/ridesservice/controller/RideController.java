@@ -188,4 +188,25 @@ public class RideController {
                 .map(ResponseEntity::ok) // 200 OK
                 .orElse(ResponseEntity.noContent().build()); // 204 No Content
     }
+
+    /**
+     * Endpoint para buscar un viaje por su ID corto (generado internamente).
+     * @param shortId El ID corto de 8 caracteres hexadecimales.
+     * @return ResponseEntity con el RideDto y 200 OK si se encuentra, o 404 si no.
+     */
+    @GetMapping("/short/{shortId}") // <<< NUEVO ENDPOINT
+    public ResponseEntity<RideDto> getRideByShortId(@PathVariable String shortId) {
+        // Validar formato básico del shortId
+        if (shortId == null || !shortId.matches("^[a-fA-F0-9]{8}$")) {
+            log.warn("GET /api/v1/rides/short/{} - Solicitud recibida con formato de ID corto inválido", shortId);
+            return ResponseEntity.badRequest().build(); // 400 Bad Request
+        }
+
+        log.info("GET /api/v1/rides/short/{} - Solicitud recibida", shortId);
+        // Llamar al método del servicio que busca por shortId
+        return rideService.findRideByShortId(shortId)
+                .map(ResponseEntity::ok) // 200 OK si se encuentra
+                .orElse(ResponseEntity.notFound().build()); // 404 Not Found si no
+    }
+
 }

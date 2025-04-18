@@ -20,6 +20,7 @@ import java.util.UUID;
 public class RideDto {
 
     private UUID id; // ID del viaje
+    private String shortId;
     private UUID userId;
     private UUID assignedDriverId; // Null si no está asignado
     private UUID assignedVehicleId; // Null si no está asignado

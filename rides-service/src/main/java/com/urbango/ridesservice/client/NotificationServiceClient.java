@@ -9,7 +9,7 @@ import java.util.List;
 import java.util.UUID;
 
 // Apunta a la URL de notification-service
-@FeignClient(name = "notification-service", url = "${services.notification.url:http://localhost:8084}/api/v1/notifications") // Asumiendo puerto 8084
+@FeignClient(name = "notification-service", url = "${services.notification.url:http://localhost:8086}/api/v1/notifications") // Asumiendo puerto 8084
 public interface NotificationServiceClient {
 
     // Endpoint para notificar a conductores sobre un nuevo viaje disponible
