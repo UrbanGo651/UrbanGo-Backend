@@ -1,3 +1,26 @@
 spring:
-  profiles:
-    active: dev
+  application:
+    name: whatsapp-adapter-service
+
+server:
+  port: 8089 # Puerto diferente para este servicio
+
+# --- URLs de otros servicios que este adaptador llamará ---
+services:
+  user:
+    url: ${USER_SERVICE_URL:http://localhost:8081}
+  driver:
+    url: ${DRIVER_SERVICE_URL:http://localhost:8087}
+  ride:
+    url: ${RIDE_SERVICE_URL:http://localhost:8088}
+  # No necesita llamar a notifications-service directamente (generalmente)
+
+logging:
+  level:
+    root: INFO
+
+cloud:
+  openfeign:
+    httpclient:
+      hc5:
+        enabled: true # Habilita el cliente Apache HttpClient 5

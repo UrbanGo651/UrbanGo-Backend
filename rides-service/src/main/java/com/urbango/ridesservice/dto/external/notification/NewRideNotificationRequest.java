@@ -1,5 +1,8 @@
 package com.urbango.ridesservice.dto.external.notification;
 
+import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
@@ -14,10 +17,11 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 public class NewRideNotificationRequest {
+    @NotNull
     private UUID rideId;
-    private List<UUID> driverIds;
-    // Podríamos añadir aquí detalles del viaje si son necesarios para la notificación
-    // private String originDetails;
-    // private String destinationDetails;
-    // private String serviceType;
+    @NotEmpty
+    private List<@NotNull UUID> driverIds;
+    @Size(max = 50) private String serviceType;
+    @Size(max = 255) private String originDetails;
+    // @Size(max = 255) private String destinationDetails; // <-- ¿Está este campo presente?
 }

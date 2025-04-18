@@ -1,15 +1,7 @@
-server:
-  port: 8085
+# --- Configuración Específica para Desarrollo ---
 
-spring:
-  datasource:
-    url: jdbc:postgresql://localhost:5432/whathaAppAdapter_service_dev
-    username: postgres
-    password: sasa
-    driver-class-name: org.postgresql.Driver
-  jpa:
-    hibernate:
-      ddl-auto: update
-    properties:
-      hibernate:
-        dialect: org.hibernate.dialect.PostgreSQLDialect
+logging:
+  level:
+    com.urbango.whatsappadapter: DEBUG # Log detallado de nuestro código en dev
+    # Puedes añadir logging de Feign si necesitas depurar las llamadas
+    # feign.client.feign.Logger: DEBUG

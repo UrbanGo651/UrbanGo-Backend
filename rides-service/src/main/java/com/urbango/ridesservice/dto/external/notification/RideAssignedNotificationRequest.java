@@ -26,4 +26,5 @@ public class RideAssignedNotificationRequest {
     private String vehicleLicensePlate;
     private String vehicleColor;
     private String vehicleModel;
+    private String vehicleType;
 }

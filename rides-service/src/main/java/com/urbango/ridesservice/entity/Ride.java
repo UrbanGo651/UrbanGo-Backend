@@ -9,20 +9,27 @@ import lombok.AllArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
+import java.security.SecureRandom;
 import java.time.Instant;
+import java.util.HexFormat;
 import java.util.UUID;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@Table(name = "rides") // Schema definido en application-dev.yml
+@Table(name = "rides", indexes = { // Opcional: definir índice aquí también
+        @Index(name = "idx_rides_short_id", columnList = "short_id")
+})
 public class Ride {
 
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
     @Column(updatable = false, nullable = false)
     private UUID id;
+
+    @Column(name = "short_id", length = 8, unique = false, updatable = false) // Longitud 8, no único por ahora, no actualizable
+    private String shortId;
 
     @Column(name = "user_id", nullable = false)
     private UUID userId;
@@ -66,4 +73,32 @@ public class Ride {
     @UpdateTimestamp
     @Column(name = "updated_at")
     private Instant updatedAt;
+
+    // --- Lógica para generar Short ID ANTES de persistir ---
+    @PrePersist // Hook de JPA que se ejecuta antes de guardar una entidad NUEVA
+    protected void onCreate() {
+        if (this.shortId == null) { // Solo genera si no tiene uno ya
+            this.shortId = generateShortId();
+        }
+        // Asegurarse que el UUID se genera si no lo hace la BD (depende de GenerationType)
+        // if (this.id == null) {
+        //     this.id = UUID.randomUUID();
+        // }
+    }
+
+    // Metodo para generar un ID corto aleatorio (ej. 8 caracteres hexadecimales)
+    private String generateShortId() {
+        // Genera 4 bytes aleatorios seguros
+        SecureRandom random = new SecureRandom();
+        byte[] bytes = new byte[4];
+        random.nextBytes(bytes);
+        // Convierte los bytes a una cadena hexadecimal de 8 caracteres
+        return HexFormat.of().formatHex(bytes); // Requiere Java 17+
+        // Alternativa para Java < 17:
+        // StringBuilder sb = new StringBuilder(8);
+        // for (byte b : bytes) {
+        //     sb.append(String.format("%02x", b));
+        // }
+        // return sb.toString();
+    }
 }

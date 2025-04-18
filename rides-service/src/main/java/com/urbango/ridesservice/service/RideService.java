@@ -65,4 +65,11 @@ public interface RideService {
      * @return Optional con el RideDto del viaje asignado si existe.
      */
     Optional<RideDto> findActiveRideForDriver(UUID driverId);
+
+    /**
+     * Busca un viaje por su ID corto almacenado.
+     * @param shortId El ID corto de 8 caracteres.
+     * @return Optional con el RideDto si se encuentra.
+     */
+    Optional<RideDto> findRideByShortId(String shortId); // <<< ¡ASEGÚRATE DE QUE ESTA LÍNEA ESTÉ AQUÍ!
 }

@@ -1,20 +1,22 @@
-package com.urbango.ridesservice.service.impl;
+package com.urbango.ridesservice.service.impl; // O tu paquete de implementación
+
 import com.urbango.ridesservice.client.DriverServiceClient;
 import com.urbango.ridesservice.client.NotificationServiceClient;
 import com.urbango.ridesservice.client.UserServiceClient;
 import com.urbango.ridesservice.dto.CreateRideRequestDto;
 import com.urbango.ridesservice.dto.RideDto;
-// Importar DTOs externos y de notificación
+// Importar DTOs externos y de notificación (asegúrate de tener estas clases en sus paquetes)
 import com.urbango.ridesservice.dto.external.DriverDto;
 import com.urbango.ridesservice.dto.external.UserDto;
-import com.urbango.ridesservice.dto.external.VehicleDto;
-import com.urbango.ridesservice.dto.external.notification.*; // Asumiendo un paquete para DTOs de notificación
+import com.urbango.ridesservice.dto.external.VehicleDto; // Necesario para notificación
+import com.urbango.ridesservice.dto.external.notification.*;
 import com.urbango.ridesservice.entity.Ride;
+import com.urbango.ridesservice.enums.DriverStatus; // Enum de Driver (necesitamos replicarlo aquí o usar módulo common)
 import com.urbango.ridesservice.enums.RideStatus;
 import com.urbango.ridesservice.enums.ServiceType;
 import com.urbango.ridesservice.repository.RideRepository;
 import com.urbango.ridesservice.service.RideService;
-import feign.FeignException; // Para capturar errores de Feign
+import feign.FeignException;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,7 +26,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
-import java.util.*;
+import java.util.*; // Importar Comparator, Set, EnumSet
 import java.util.stream.Collectors;
 
 @Service
@@ -37,10 +39,18 @@ public class RideServiceImpl implements RideService {
     private final DriverServiceClient driverServiceClient;
     private final NotificationServiceClient notificationServiceClient;
 
-    // Lista de estados considerados "activos" (no finalizados/cancelados)
-    private static final List<RideStatus> ACTIVE_RIDE_STATUSES = List.of(
+    // Estados considerados "activos" para verificar si un usuario/conductor ya tiene uno
+    private static final Set<RideStatus> ACTIVE_RIDE_STATUSES_USER = EnumSet.of(
             RideStatus.REQUESTED, RideStatus.ASSIGNED
-            // Añadir otros estados en curso si se implementan
+            // Añadir EN_ROUTE_TO_PICKUP, AT_PICKUP, ONGOING si se implementan
+    );
+    private static final Set<RideStatus> ACTIVE_RIDE_STATUSES_DRIVER = EnumSet.of(
+            RideStatus.ASSIGNED
+            // Añadir EN_ROUTE_TO_PICKUP, AT_PICKUP, ONGOING si se implementan
+    );
+    // Estados finales que impiden cancelación
+    private static final Set<RideStatus> FINAL_RIDE_STATUSES = EnumSet.of(
+            RideStatus.COMPLETED, RideStatus.CANCELLED_DRIVER, RideStatus.CANCELLED_USER, RideStatus.TIMEOUT_NO_DRIVER
     );
 
     @Override
@@ -48,30 +58,27 @@ public class RideServiceImpl implements RideService {
     public RideDto requestRide(CreateRideRequestDto requestDto) {
         log.info("Solicitud de viaje recibida para usuario {} y servicio {}", requestDto.getUserId(), requestDto.getServiceType());
 
-        // 1. Validar que el usuario exista
-        validateUserExists(requestDto.getUserId());
+        validateUserExists(requestDto.getUserId()); // Lanza excepción si no existe
 
-        // 2. Validar que el usuario no tenga otro viaje activo
-        findActiveRideForUser(requestDto.getUserId()).ifPresent(activeRide -> {
+        findActiveRideForUserInternal(requestDto.getUserId()).ifPresent(activeRide -> { // Usa método interno
             log.warn("El usuario {} ya tiene un viaje activo (ID: {})", requestDto.getUserId(), activeRide.getId());
-            throw new IllegalStateException("Ya tienes un viaje activo."); // O excepción personalizada
+            throw new IllegalStateException("Ya tienes un viaje activo.");
         });
 
-        // 3. Crear y guardar la entidad Ride inicial
         Ride newRide = new Ride();
         newRide.setUserId(requestDto.getUserId());
         newRide.setServiceType(requestDto.getServiceType());
         newRide.setRideStatus(RideStatus.REQUESTED); // Estado inicial
         newRide.setOriginDetails(requestDto.getOriginDetails());
         newRide.setDestinationDetails(requestDto.getDestinationDetails());
+        // El shortId se genera automáticamente con @PrePersist en la entidad Ride
 
         Ride savedRide = rideRepository.save(newRide);
-        log.info("Viaje creado con ID: {} en estado REQUESTED", savedRide.getId());
+        log.info("Viaje creado con ID: {} y ShortID: {} en estado REQUESTED", savedRide.getId(), savedRide.getShortId());
 
-        // 4. Iniciar búsqueda de conductores (llamada asíncrona sería ideal aquí, pero por ahora síncrona)
-        findAndNotifyDrivers(savedRide.getId(), savedRide.getServiceType());
+        // Iniciar búsqueda de conductores (asíncrono idealmente)
+        findAndNotifyDrivers(savedRide); // Pasar la entidad completa
 
-        // 5. Mapear y devolver DTO
         return mapRideToDto(savedRide);
     }
 
@@ -83,33 +90,37 @@ public class RideServiceImpl implements RideService {
         Ride ride = rideRepository.findById(rideId)
                 .orElseThrow(() -> new EntityNotFoundException("Viaje no encontrado con ID: " + rideId));
 
-        // 1. Validar estado del viaje (solo se puede aceptar si está REQUESTED)
         if (ride.getRideStatus() != RideStatus.REQUESTED) {
             log.warn("Intento de aceptar viaje {} que no está en estado REQUESTED (estado actual: {})", rideId, ride.getRideStatus());
-            // Notificar a este conductor que ya fue tomado (si no es el que lo tiene asignado)
             if (ride.getRideStatus() == RideStatus.ASSIGNED && !driverId.equals(ride.getAssignedDriverId())) {
-                notifyDriverRideTakenAsync(driverId, rideId);
+                notifyDriverRideTakenAsync(driverId, rideId); // Notificar al conductor que intentó tarde
             }
             throw new IllegalStateException("Este viaje ya no está disponible para ser aceptado.");
         }
 
-        // 2. Validar conductor y vehículo (simplificado por ahora, asumimos que existen)
-        // En un sistema real, verificaríamos que driverId y vehicleId son válidos y pertenecen al conductor.
+        // Validar conductor y vehículo (podría ser más extenso)
+        Optional<DriverDto> driverOpt = validateDriverCanAccept(driverId, vehicleId, ride.getServiceType());
+        if (driverOpt.isEmpty()) {
+            // La validación ya lanzó la excepción o logueó el error
+            // Lanzamos una excepción genérica aquí para detener el flujo si la validación no lo hizo
+            throw new IllegalStateException("El conductor o vehículo no son válidos para aceptar este viaje.");
+        }
+        DriverDto driverDetails = driverOpt.get(); // Tenemos los detalles del conductor validados
 
-        // 3. Actualizar Viaje
+        // Actualizar Viaje
         ride.setAssignedDriverId(driverId);
-        ride.setAssignedVehicleId(vehicleId); // Guardar vehículo
+        ride.setAssignedVehicleId(vehicleId);
         ride.setRideStatus(RideStatus.ASSIGNED);
         ride.setAssignedAt(Instant.now());
         Ride updatedRide = rideRepository.save(ride);
         log.info("Viaje {} asignado a conductor {}", rideId, driverId);
 
-        // 4. Actualizar estado del conductor a ON_RIDE (llamada a driver-service)
-        updateDriverStatusAsync(driverId, "ON_RIDE"); // Usar el nombre del Enum
+        // Actualizar estado del conductor a ON_RIDE
+        updateDriverStatusAsync(driverId, DriverStatus.ON_RIDE); // Usar Enum
 
-        // 5. Notificar al usuario y al conductor asignado (llamadas a notification-service)
-        notifyUserRideAssignedAsync(ride.getUserId(), driverId, rideId);
-        notifyDriverRideConfirmedAsync(driverId, ride.getUserId(), rideId);
+        // Notificar al usuario y al conductor
+        notifyUserRideAssignedAsync(ride.getUserId(), driverDetails, vehicleId, rideId); // Pasar DriverDto
+        notifyDriverRideConfirmedAsync(driverId, ride.getUserId(), rideId, ride.getOriginDetails(), ride.getDestinationDetails()); // Pasar detalles
 
         return mapRideToDto(updatedRide);
     }
@@ -122,26 +133,26 @@ public class RideServiceImpl implements RideService {
         Ride ride = rideRepository.findById(rideId)
                 .orElseThrow(() -> new EntityNotFoundException("Viaje no encontrado con ID: " + rideId));
 
-        // 1. Validar estado y conductor asignado
-        if (ride.getRideStatus() != RideStatus.ASSIGNED) { // O estados ONGOING si existen
-            log.warn("Intento de completar viaje {} que no está asignado (estado actual: {})", rideId, ride.getRideStatus());
+        // Validar estado y conductor
+        if (!EnumSet.of(RideStatus.ASSIGNED /*, RideStatus.ONGOING, etc */).contains(ride.getRideStatus())) {
+            log.warn("Intento de completar viaje {} que no está asignado/en curso (estado actual: {})", rideId, ride.getRideStatus());
             throw new IllegalStateException("El viaje no se puede completar en el estado actual.");
         }
         if (!driverId.equals(ride.getAssignedDriverId())) {
             log.error("Intento de completar viaje {} por conductor {} que no es el asignado ({})", rideId, driverId, ride.getAssignedDriverId());
-            throw new SecurityException("No estás autorizado para completar este viaje."); // O IllegalArgumentException
+            throw new SecurityException("No estás autorizado para completar este viaje.");
         }
 
-        // 2. Actualizar Viaje
+        // Actualizar Viaje
         ride.setRideStatus(RideStatus.COMPLETED);
         ride.setCompletedAt(Instant.now());
         Ride updatedRide = rideRepository.save(ride);
         log.info("Viaje {} completado por conductor {}", rideId, driverId);
 
-        // 3. Actualizar estado del conductor a ACTIVE_AVAILABLE (llamada a driver-service)
-        updateDriverStatusAsync(driverId, "ACTIVE_AVAILABLE");
+        // Actualizar estado del conductor a ACTIVE_AVAILABLE
+        updateDriverStatusAsync(driverId, DriverStatus.ACTIVE_AVAILABLE); // Usar Enum
 
-        // 4. Notificar al usuario (llamada a notification-service)
+        // Notificar al usuario
         notifyUserRideCompletedAsync(ride.getUserId(), rideId);
 
         return mapRideToDto(updatedRide);
@@ -154,46 +165,29 @@ public class RideServiceImpl implements RideService {
         Ride ride = rideRepository.findById(rideId)
                 .orElseThrow(() -> new EntityNotFoundException("Viaje no encontrado con ID: " + rideId));
 
-        // 1. Validar si se puede cancelar (no completado/ya cancelado)
-        if (EnumSet.of(RideStatus.COMPLETED, RideStatus.CANCELLED_DRIVER, RideStatus.CANCELLED_USER, RideStatus.TIMEOUT_NO_DRIVER).contains(ride.getRideStatus())) {
+        if (FINAL_RIDE_STATUSES.contains(ride.getRideStatus())) {
             log.warn("Intento de cancelar viaje {} que ya está finalizado o cancelado (estado: {})", rideId, ride.getRideStatus());
             throw new IllegalStateException("Este viaje no se puede cancelar.");
         }
 
-        // 2. Determinar el estado de cancelación correcto
-        RideStatus cancelStatus;
-        // Aquí podrías tener una lógica más fina basada en la 'reason'
-        if ("CANCELLED_USER".equalsIgnoreCase(reason)) {
-            cancelStatus = RideStatus.CANCELLED_USER;
-        } else if ("CANCELLED_DRIVER".equalsIgnoreCase(reason)) {
-            cancelStatus = RideStatus.CANCELLED_DRIVER;
-        } else if ("TIMEOUT_NO_DRIVER".equalsIgnoreCase(reason)) {
-            cancelStatus = RideStatus.TIMEOUT_NO_DRIVER;
-        } else {
-            log.warn("Razón de cancelación no reconocida '{}', usando CANCELLED_USER por defecto para viaje {}", reason, rideId);
-            cancelStatus = RideStatus.CANCELLED_USER; // O un estado genérico CANCELLED
-        }
+        RideStatus cancelStatus = determineCancelStatus(reason); // Usar método auxiliar
+        UUID assignedDriverId = ride.getAssignedDriverId();
 
-        UUID assignedDriverId = ride.getAssignedDriverId(); // Guardar antes de actualizar
-
-        // 3. Actualizar Viaje
+        // Actualizar Viaje
         ride.setRideStatus(cancelStatus);
         ride.setCancelledAt(Instant.now());
-        ride.setCancellationReason(reason); // Guardar la razón
+        ride.setCancellationReason(reason);
         Ride updatedRide = rideRepository.save(ride);
         log.info("Viaje {} cancelado con estado {}", rideId, cancelStatus);
 
-        // 4. Si había un conductor asignado, ponerlo disponible de nuevo
-        if (assignedDriverId != null && cancelStatus != RideStatus.COMPLETED) { // Evitar si se completa
-            updateDriverStatusAsync(assignedDriverId, "ACTIVE_AVAILABLE");
-            // Podríamos notificar al conductor sobre la cancelación también
+        // Poner al conductor disponible si estaba asignado
+        if (assignedDriverId != null) {
+            updateDriverStatusAsync(assignedDriverId, DriverStatus.ACTIVE_AVAILABLE);
+            // TODO: Notificar al conductor/usuario sobre la cancelación si es necesario
         }
-
-        // Podríamos notificar al usuario/conductor sobre la cancelación
 
         return mapRideToDto(updatedRide);
     }
-
 
     @Override
     @Transactional(readOnly = true)
@@ -204,239 +198,231 @@ public class RideServiceImpl implements RideService {
 
     @Override
     @Transactional(readOnly = true)
-    public Optional<RideDto> findActiveRideForUser(UUID userId) {
-        log.debug("Buscando viaje activo para usuario: {}", userId);
-        return rideRepository.findFirstByUserIdAndRideStatusIn(userId, ACTIVE_RIDE_STATUSES)
+    public Optional<RideDto> findRideByShortId(String shortId) {
+        log.debug("Buscando viaje por ID corto (columna dedicada): {}", shortId);
+        // Usar el nuevo método eficiente del repositorio
+        return rideRepository.findByShortId(shortId)
                 .map(this::mapRideToDto);
     }
 
+    // Método público expuesto por la interfaz
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<RideDto> findActiveRideForUser(UUID userId) {
+        log.debug("Buscando viaje activo para usuario: {}", userId);
+        return findActiveRideForUserInternal(userId).map(this::mapRideToDto);
+    }
+
+    // Método público expuesto por la interfaz
     @Override
     @Transactional(readOnly = true)
     public Optional<RideDto> findActiveRideForDriver(UUID driverId) {
         log.debug("Buscando viaje activo para conductor: {}", driverId);
-        // Un conductor solo tiene un viaje activo si está ASIGNADO (o ONGOING, etc.)
-        List<RideStatus> driverActiveStatuses = List.of(RideStatus.ASSIGNED); // Añadir otros si aplica
-        return rideRepository.findFirstByAssignedDriverIdAndRideStatusIn(driverId, driverActiveStatuses)
+        return rideRepository.findFirstByAssignedDriverIdAndRideStatusIn(driverId, List.copyOf(ACTIVE_RIDE_STATUSES_DRIVER))
                 .map(this::mapRideToDto);
     }
 
+    // --- Métodos Auxiliares Internos ---
 
-    // --- Métodos Auxiliares ---
+    // Método interno para buscar viaje activo de usuario (devuelve Entidad)
+    private Optional<Ride> findActiveRideForUserInternal(UUID userId) {
+        return rideRepository.findFirstByUserIdAndRideStatusIn(userId, List.copyOf(ACTIVE_RIDE_STATUSES_USER));
+    }
 
     private void validateUserExists(UUID userId) {
         try {
-            log.debug("Validando existencia de usuario: {}", userId);
-            ResponseEntity<UserDto> response = userServiceClient.getUserById(userId);
-            if (response.getStatusCode() != HttpStatus.OK || response.getBody() == null) {
-                log.error("Usuario no encontrado o respuesta inesperada de user-service para ID: {}", userId);
-                throw new EntityNotFoundException("Usuario no encontrado con ID: " + userId);
+            log.debug("(RideService) Validando existencia de usuario: {}", userId);
+            ResponseEntity<UserDto> response = userServiceClient.getUserById(userId); // Llama al cliente Feign
+            if (!response.getStatusCode().is2xxSuccessful() || response.getBody() == null) {
+                log.error("Usuario no encontrado o respuesta inválida de user-service para ID: {}", userId);
+                throw new EntityNotFoundException("Usuario solicitante no encontrado con ID: " + userId);
             }
-            log.debug("Usuario {} validado.", userId);
+            log.debug("Usuario {} validado OK.", userId);
         } catch (FeignException e) {
-            log.error("Error al llamar a user-service para validar usuario {}: {}", userId, e.getMessage());
+            log.error("Error (Feign) al validar usuario {}: Status={}, Body={}", userId, e.status(), e.contentUTF8(), e);
             if (e.status() == HttpStatus.NOT_FOUND.value()) {
-                throw new EntityNotFoundException("Usuario no encontrado con ID: " + userId);
+                throw new EntityNotFoundException("Usuario solicitante no encontrado con ID: " + userId);
             }
-            throw new RuntimeException("Error de comunicación con el servicio de usuarios.", e); // O excepción personalizada
+            throw new RuntimeException("Error de comunicación al validar usuario.", e);
         }
     }
 
-    private void findAndNotifyDrivers(UUID rideId, ServiceType serviceType) {
-        log.debug("Buscando conductores disponibles para viaje {} y tipo {}", rideId, serviceType);
+    private Optional<DriverDto> validateDriverCanAccept(UUID driverId, UUID vehicleId, ServiceType requiredServiceType) {
+        log.debug("Validando si conductor {} con vehículo {} puede aceptar servicio tipo {}", driverId, vehicleId, requiredServiceType);
         try {
-            ResponseEntity<List<DriverDto>> response = driverServiceClient.findAvailableDrivers(serviceType.name()); // Enviar nombre del Enum
+            ResponseEntity<DriverDto> response = driverServiceClient.getDriverDetailsById(driverId);
+            if (!response.getStatusCode().is2xxSuccessful() || response.getBody() == null) {
+                log.error("No se pudieron obtener detalles del conductor {} desde driver-service. Código: {}", driverId, response.getStatusCode());
+                throw new IllegalArgumentException("No se pudo verificar la información del conductor.");
+            }
+            DriverDto driver = response.getBody();
+
+            // Verificar estado del conductor (debe estar AVAILABLE para aceptar)
+            // IMPORTANTE: Comparar con el ENUM o su representación String
+            if (!DriverStatus.ACTIVE_AVAILABLE.name().equalsIgnoreCase(driver.getDriverStatus())) {
+                log.warn("Conductor {} no está disponible para aceptar. Estado actual: {}", driverId, driver.getDriverStatus());
+                // Notificar que ya fue tomado, ya que otro conductor pudo ser más rápido en aceptar Y este conductor cambió su estado
+                notifyDriverRideTakenAsync(driverId, null); // Pasamos rideId null porque no lo tenemos fácilmente aquí
+                throw new IllegalStateException("Ya no estás disponible para aceptar servicios.");
+            }
+
+            // Verificar si el vehículo especificado pertenece al conductor y es del tipo correcto y está activo
+            Optional<VehicleDto> vehicleOpt = driver.getVehicles().stream()
+                    .filter(v -> vehicleId.equals(v.getId()))
+                    .findFirst();
+
+            if (vehicleOpt.isEmpty()) {
+                log.error("El vehículo {} no pertenece al conductor {}", vehicleId, driverId);
+                throw new IllegalArgumentException("El vehículo especificado no te pertenece.");
+            }
+
+            VehicleDto vehicle = vehicleOpt.get();
+            if (!vehicle.isActive()) {
+                log.error("El vehículo {} del conductor {} no está activo", vehicleId, driverId);
+                throw new IllegalArgumentException("El vehículo seleccionado no está activo.");
+            }
+
+            // Comparar tipo de servicio requerido con tipo de vehículo (ajustar si es necesario)
+            boolean typeMatch = false;
+            if (requiredServiceType == ServiceType.CAR && "CAR".equalsIgnoreCase(vehicle.getVehicleType())) typeMatch = true;
+            if (requiredServiceType == ServiceType.MOTORCYCLE && "MOTORCYCLE".equalsIgnoreCase(vehicle.getVehicleType())) typeMatch = true;
+            if (requiredServiceType == ServiceType.DELIVERY && List.of("MOTORCYCLE", "BICYCLE", "CAR").contains(vehicle.getVehicleType().toUpperCase())) typeMatch = true; // Delivery puede ser en varios tipos
+
+            if (!typeMatch) {
+                log.error("Tipo de vehículo {} no coincide con servicio requerido {} para conductor {}", vehicle.getVehicleType(), requiredServiceType, driverId);
+                throw new IllegalArgumentException("Tu vehículo no es apto para este tipo de servicio.");
+            }
+
+            log.info("Conductor {} y vehículo {} validados para aceptar servicio {}", driverId, vehicleId, requiredServiceType);
+            return Optional.of(driver); // Devuelve el DriverDto validado
+
+        } catch (FeignException e) {
+            log.error("Error (Feign) al validar conductor/vehículo {}: {}", driverId, e.getMessage());
+            throw new RuntimeException("Error de comunicación al validar conductor.", e);
+        }
+    }
+
+
+    private void findAndNotifyDrivers(Ride ride) { // Recibe la entidad Ride
+        log.debug("Buscando conductores disponibles para viaje {} (ShortID: {}) tipo {}", ride.getId(), ride.getShortId(), ride.getServiceType());
+        try {
+            // Llama a driver-service para obtener conductores disponibles para el tipo de servicio
+            ResponseEntity<List<DriverDto>> response = driverServiceClient.findAvailableDrivers(ride.getServiceType().name());
+
             if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
                 List<DriverDto> availableDrivers = response.getBody();
                 if (!availableDrivers.isEmpty()) {
                     List<UUID> driverIds = availableDrivers.stream().map(DriverDto::getId).collect(Collectors.toList());
-                    log.info("Encontrados {} conductores disponibles para viaje {}. Notificando...", driverIds.size(), rideId);
-                    // Notificar a los conductores encontrados
-                    notifyDriversNewRideAsync(rideId, driverIds);
+                    log.info("Encontrados {} conductores disponibles para viaje {}. Notificando...", driverIds.size(), ride.getId());
+
+                    // Construir la solicitud de notificación
+                    NewRideNotificationRequest notificationRequest = new NewRideNotificationRequest(
+                            ride.getId(),
+                            driverIds,
+                            ride.getServiceType().name(),
+                            ride.getOriginDetails()
+                           //ride.getDestinationDetails() // Incluir destino si el DTO lo tiene
+                    );
+                    notifyDriversNewRideAsync(notificationRequest); // Llamar al método async simulado
+
                 } else {
-                    log.warn("No se encontraron conductores disponibles para viaje {} y tipo {}", rideId, serviceType);
-                    // Aquí podríamos iniciar un temporizador para cancelar el viaje si nadie acepta,
-                    // o poner el viaje en una cola para reintentar la búsqueda.
-                    // Por ahora, solo lo registramos.
+                    log.warn("No se encontraron conductores disponibles para viaje {} y tipo {}", ride.getId(), ride.getServiceType());
+                    // TODO: Implementar lógica de timeout o reintento si no se encuentran conductores.
+                    // Por ejemplo, cancelar el viaje después de X minutos:
+                    // scheduleCancellation(ride.getId(), "TIMEOUT_NO_DRIVER", Duration.ofMinutes(5));
                 }
             } else {
-                log.error("Respuesta inesperada de driver-service al buscar conductores disponibles: Código {}", response.getStatusCode());
+                log.error("Respuesta inesperada de driver-service al buscar conductores: Código {}", response.getStatusCode());
             }
         } catch (FeignException e) {
-            log.error("Error al llamar a driver-service para buscar conductores para viaje {}: {}", rideId, e.getMessage());
-            // Manejar error de comunicación (podría reintentar, etc.)
+            log.error("Error (Feign) al buscar conductores para viaje {}: {}", ride.getId(), e.getMessage());
+            // Podrías intentar cancelar el viaje aquí también si falla la comunicación
+            // cancelRide(ride.getId(), "ERROR_FINDING_DRIVERS");
         } catch (Exception e) {
-            log.error("Error inesperado durante la búsqueda y notificación de conductores para viaje {}", rideId, e);
+            log.error("Error inesperado buscando/notificando conductores para viaje {}: {}", ride.getId(), e.getMessage(), e);
         }
     }
 
-    // --- Métodos Asíncronos para Llamadas a otros Servicios (Buena práctica) ---
-    // Implementar estos métodos usando @Async requeriría configuración adicional
-    // Por ahora, haremos llamadas síncronas pero las encapsulamos
+    private RideStatus determineCancelStatus(String reason) {
+        if ("CANCELLED_USER".equalsIgnoreCase(reason)) return RideStatus.CANCELLED_USER;
+        if ("CANCELLED_DRIVER".equalsIgnoreCase(reason)) return RideStatus.CANCELLED_DRIVER;
+        if ("TIMEOUT_NO_DRIVER".equalsIgnoreCase(reason)) return RideStatus.TIMEOUT_NO_DRIVER;
+        // Añadir más razones si es necesario
+        return RideStatus.CANCELLED_USER; // Default si la razón no es reconocida
+    }
 
-    private void updateDriverStatusAsync(UUID driverId, String status) {
+    // --- Métodos Asíncronos Simulados para Llamadas a otros Servicios ---
+
+    private void updateDriverStatusAsync(UUID driverId, DriverStatus status) { // Recibe Enum
         log.debug("Enviando solicitud para actualizar estado de conductor {} a {}", driverId, status);
         try {
-            Map<String, String> requestBody = Map.of("status", status);
+            Map<String, String> requestBody = Map.of("status", status.name()); // Enviar nombre del Enum
             driverServiceClient.updateDriverStatus(driverId, requestBody);
-            log.info("Solicitud de actualización de estado para conductor {} enviada.", driverId);
-        } catch (FeignException e) {
-            log.error("Error (Feign) al actualizar estado del conductor {}: {}", driverId, e.getMessage());
-            // Manejar error: reintentar, loguear para intervención manual, etc.
+            log.info("Solicitud de actualización de estado {} para conductor {} enviada.", status, driverId);
         } catch (Exception e) {
-            log.error("Error inesperado al actualizar estado del conductor {}", driverId, e);
+            log.error("Fallo al enviar actualización de estado para conductor {}: {}", driverId, e.getMessage(), e);
+            // Considerar mecanismo de reintento o log para acción manual
         }
     }
 
-    private void notifyDriversNewRideAsync(UUID rideId, List<UUID> driverIds) {
-        log.debug("Enviando notificación de nuevo viaje {} a {} conductores", rideId, driverIds.size());
+    private void notifyDriversNewRideAsync(NewRideNotificationRequest request) {
+        log.debug("Enviando notificación de nuevo viaje {} a {} conductores", request.getRideId(), request.getDriverIds().size());
         try {
-            NewRideNotificationRequest request = new NewRideNotificationRequest(rideId, driverIds); // Crear DTO
             notificationServiceClient.notifyDriversNewRide(request);
-            log.info("Notificación de nuevo viaje {} enviada.", rideId);
-        } catch (FeignException e) {
-            log.error("Error (Feign) al notificar a conductores sobre viaje {}: {}", rideId, e.getMessage());
+            log.info("Notificación de nuevo viaje {} enviada.", request.getRideId());
         } catch (Exception e) {
-            log.error("Error inesperado al notificar a conductores sobre viaje {}", rideId, e);
+            log.error("Fallo al enviar notificación de nuevo viaje {}: {}", request.getRideId(), e.getMessage(), e);
         }
     }
 
-    /**
-     * Notifica asíncronamente (o síncronamente por ahora) al usuario sobre la asignación del viaje,
-     * incluyendo detalles del conductor y vehículo.
-     */
-    private void notifyUserRideAssignedAsync(UUID userId, UUID driverId, UUID rideId) {
-        log.debug("Intentando notificar a usuario {} sobre asignación de viaje {} por conductor {}", userId, rideId, driverId);
-
-        String driverName = "Información no disponible"; // Valor por defecto
-        String driverWhatsapp = "N/A";                  // Valor por defecto
-        String vehicleInfo = "Vehículo no especificado"; // Valor por defecto
-        String vehicleLicensePlate = "N/A";            // Valor por defecto
-        String vehicleColor = "";                     // Valor por defecto
-        String vehicleModel = "";                     // Valor por defecto
-
-        // --- Intentar obtener detalles del conductor y vehículo ---
+    // Modificado para recibir DriverDto y no necesitar buscar info de nuevo
+    private void notifyUserRideAssignedAsync(UUID userId, DriverDto driverDetails, UUID vehicleId, UUID rideId) {
+        log.debug("Notificando a usuario {} sobre asignación de viaje {}", userId, rideId);
         try {
-            log.debug("Llamando a driver-service para obtener detalles del conductor {}", driverId);
-            ResponseEntity<DriverDto> response = driverServiceClient.getDriverDetailsById(driverId);
+            VehicleDto assignedVehicle = driverDetails.getVehicles().stream()
+                    .filter(v -> vehicleId.equals(v.getId()))
+                    .findFirst().orElse(null); // Encuentra el vehículo usado
 
-            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                DriverDto driverDetails = response.getBody();
-                driverName = driverDetails.getFullName() != null ? driverDetails.getFullName() : driverName;
-                driverWhatsapp = driverDetails.getWhatsappNumber() != null ? driverDetails.getWhatsappNumber() : driverWhatsapp;
-
-                // Intentar obtener información del primer vehículo activo (o el asignado si lo tuviéramos)
-                Optional<VehicleDto> assignedVehicleOpt = driverDetails.getVehicles().stream()
-                        .filter(VehicleDto::isActive) // Podríamos filtrar por el vehicleId si lo pasáramos
-                        .findFirst();
-
-                if (assignedVehicleOpt.isPresent()) {
-                    VehicleDto assignedVehicle = assignedVehicleOpt.get();
-                    vehicleLicensePlate = assignedVehicle.getLicensePlate() != null ? assignedVehicle.getLicensePlate() : vehicleLicensePlate;
-                    vehicleColor = assignedVehicle.getColor() != null ? assignedVehicle.getColor() : vehicleColor;
-                    vehicleModel = assignedVehicle.getModel() != null ? assignedVehicle.getModel() : vehicleModel;
-                    vehicleInfo = String.format("%s %s %s - Placa: %s",
-                            assignedVehicle.getVehicleType() != null ? assignedVehicle.getVehicleType() : "Vehículo",
-                            vehicleColor,
-                            vehicleModel,
-                            vehicleLicensePlate).trim().replaceAll("\\s+", " "); // Formateo básico
-                }
-                log.debug("Detalles obtenidos para conductor {}: Nombre={}, WhatsApp={}, Vehículo={}", driverId, driverName, driverWhatsapp, vehicleInfo);
-            } else {
-                log.warn("No se pudieron obtener detalles completos del conductor {} desde driver-service. Código: {}", driverId, response.getStatusCode());
-            }
-        } catch (FeignException e) {
-            log.error("Error (Feign) al obtener detalles del conductor {}: {}", driverId, e.getMessage());
-            // Continuamos con valores por defecto, pero registramos el error
-        } catch (Exception e) {
-            log.error("Error inesperado al obtener detalles del conductor {}", driverId, e);
-            // Continuamos con valores por defecto
-        }
-
-
-        // --- Construir y enviar la notificación ---
-        try {
             RideAssignedNotificationRequest request = RideAssignedNotificationRequest.builder()
                     .userId(userId)
-                    .driverId(driverId)
+                    .driverId(driverDetails.getId())
                     .rideId(rideId)
-                    .driverName(driverName) // Usar los detalles obtenidos (o por defecto)
-                    .driverWhatsapp(driverWhatsapp)
-                    .vehicleInfo(vehicleInfo)
-                    .vehicleLicensePlate(vehicleLicensePlate)
-                    .vehicleColor(vehicleColor)
-                    .vehicleModel(vehicleModel)
+                    .driverName(driverDetails.getFullName())
+                    .driverWhatsapp(driverDetails.getWhatsappNumber())
+                    .vehicleType(assignedVehicle != null ? assignedVehicle.getVehicleType() : null) // Usar String o replicar Enum VehicleType aquí
+                    .vehicleModel(assignedVehicle != null ? assignedVehicle.getModel() : null)
+                    .vehicleColor(assignedVehicle != null ? assignedVehicle.getColor() : null)
+                    .vehicleLicensePlate(assignedVehicle != null ? assignedVehicle.getLicensePlate() : null)
                     .build();
 
-            log.debug("Enviando notificación de viaje asignado a notification-service: {}", request);
             notificationServiceClient.notifyUserRideAssigned(request);
             log.info("Notificación de viaje asignado {} enviada a usuario {}.", rideId, userId);
-
-        } catch (FeignException e) {
-            log.error("Error (Feign) al enviar notificación a usuario {} sobre viaje asignado {}: {}", userId, rideId, e.getMessage());
         } catch (Exception e) {
-            log.error("Error inesperado al enviar notificación a usuario {} sobre viaje asignado {}", userId, rideId, e);
+            log.error("Fallo al enviar notificación de viaje asignado {} a usuario {}: {}", rideId, userId, e.getMessage(), e);
         }
     }
 
-    private void notifyDriverRideConfirmedAsync(UUID driverId, UUID userId, UUID rideId) {
-        log.debug("Intentando notificar a conductor {} sobre confirmación de viaje {}", driverId, rideId);
-
-        String userName = "Usuario"; // Valor por defecto
-        String userWhatsapp = "N/A"; // Valor por defecto
-        String originDetails = "";   // Valor por defecto
-        String destinationDetails = ""; // Valor por defecto
-
-        // --- Intentar obtener detalles del usuario ---
+    // Modificado para recibir más detalles y no buscarlos de nuevo
+    private void notifyDriverRideConfirmedAsync(UUID driverId, UUID userId, UUID rideId, String origin, String destination) {
+        log.debug("Notificando a conductor {} sobre confirmación de viaje {}", driverId, rideId);
         try {
-            log.debug("Llamando a user-service para obtener detalles del usuario {}", userId);
-            ResponseEntity<UserDto> userResponse = userServiceClient.getUserById(userId);
-            if (userResponse.getStatusCode().is2xxSuccessful() && userResponse.getBody() != null) {
-                UserDto userDetails = userResponse.getBody();
-                userName = userDetails.getFullName() != null ? userDetails.getFullName() : userName;
-                userWhatsapp = userDetails.getWhatsappNumber() != null ? userDetails.getWhatsappNumber() : userWhatsapp;
-                log.debug("Detalles obtenidos para usuario {}: Nombre={}, WhatsApp={}", userId, userName, userWhatsapp);
-            } else {
-                log.warn("No se pudieron obtener detalles del usuario {} desde user-service. Código: {}", userId, userResponse.getStatusCode());
-            }
-        } catch (FeignException e) {
-            log.error("Error (Feign) al obtener detalles del usuario {}: {}", userId, e.getMessage());
-        } catch (Exception e) {
-            log.error("Error inesperado al obtener detalles del usuario {}", userId, e);
-        }
+            // TODO: Necesitaríamos llamar a userServiceClient para obtener nombre y WhatsApp del usuario
+            String userName = "Usuario"; // Placeholder
+            String userWhatsapp = null; // Placeholder
 
-        // --- Intentar obtener detalles del viaje (origen/destino si existen) ---
-        // Podríamos hacer rideRepository.findById(rideId) aquí, pero si ya tenemos la entidad Ride
-        // en el método que llama a este (como en acceptRide), sería mejor pasar esos detalles.
-        // Por ahora, asumimos que no los tenemos fácilmente y los dejamos vacíos o los buscamos.
-        Optional<Ride> rideOpt = rideRepository.findById(rideId);
-        if (rideOpt.isPresent()) {
-            originDetails = rideOpt.get().getOriginDetails() != null ? rideOpt.get().getOriginDetails() : originDetails;
-            destinationDetails = rideOpt.get().getDestinationDetails() != null ? rideOpt.get().getDestinationDetails() : destinationDetails;
-        } else {
-            log.warn("No se pudo encontrar el viaje con ID {} para obtener detalles de origen/destino.", rideId);
-        }
-
-
-        // --- Construir y enviar la notificación ---
-        try {
-            // Usar el Builder:
             RideConfirmedNotificationRequest request = RideConfirmedNotificationRequest.builder()
                     .driverId(driverId)
                     .userId(userId)
                     .rideId(rideId)
-                    .userName(userName) // Usar detalles obtenidos o por defecto
+                    .userName(userName)
                     .userWhatsapp(userWhatsapp)
-                    .originDetails(originDetails)
-                    .destinationDetails(destinationDetails)
+                    .originDetails(origin)
+                    .destinationDetails(destination)
                     .build();
-
-            log.debug("Enviando notificación de confirmación de viaje a notification-service: {}", request);
             notificationServiceClient.notifyDriverRideConfirmed(request);
             log.info("Notificación de confirmación de viaje {} enviada a conductor {}.", rideId, driverId);
-        } catch (FeignException e) {
-            log.error("Error (Feign) al enviar confirmación a conductor {}: {}", driverId, e.getMessage());
         } catch (Exception e) {
-            log.error("Error inesperado al enviar confirmación a conductor {}", driverId, e);
+            log.error("Fallo al enviar notificación de confirmación a conductor {}: {}", driverId, e.getMessage(), e);
         }
     }
 
@@ -446,39 +432,34 @@ public class RideServiceImpl implements RideService {
             RideCompletionNotificationRequest request = new RideCompletionNotificationRequest(userId, rideId);
             notificationServiceClient.notifyUserRideCompleted(request);
             log.info("Notificación de viaje completado {} enviada a usuario {}.", rideId, userId);
-        } catch (FeignException e) {
-            log.error("Error (Feign) al notificar finalización a usuario {}: {}", userId, e.getMessage());
         } catch (Exception e) {
-            log.error("Error inesperado al notificar finalización a usuario {}", userId, e);
+            log.error("Fallo al enviar notificación de finalización a usuario {}: {}", userId, e.getMessage(), e);
         }
     }
 
     private void notifyDriverRideTakenAsync(UUID driverId, UUID rideId) {
-        log.debug("Notificando a conductor {} que el viaje {} ya fue tomado", driverId, rideId);
+        // rideId puede ser null si el error ocurre antes de identificar el viaje
+        log.debug("Notificando a conductor {} que el viaje {} ya fue tomado", driverId, rideId != null ? rideId : "desconocido");
         try {
-            RideTakenNotificationRequest request = new RideTakenNotificationRequest(driverId, rideId);
+            RideTakenNotificationRequest request = new RideTakenNotificationRequest(driverId, rideId); // rideId puede ser null
             notificationServiceClient.notifyDriverRideTaken(request);
-            log.info("Notificación de viaje tomado {} enviada a conductor {}.", rideId, driverId);
-        } catch (FeignException e) {
-            log.error("Error (Feign) al notificar viaje tomado a conductor {}: {}", driverId, e.getMessage());
+            log.info("Notificación de viaje tomado enviada a conductor {}.", driverId);
         } catch (Exception e) {
-            log.error("Error inesperado al notificar viaje tomado a conductor {}", driverId, e);
+            log.error("Fallo al enviar notificación de viaje tomado a conductor {}: {}", driverId, e.getMessage(), e);
         }
     }
 
-
-    // --- Mapeador Entidad Ride -> RideDto ---
+    // --- Mapeador Entidad Ride -> RideDto (Incluyendo shortId) ---
     private RideDto mapRideToDto(Ride ride) {
-        if (ride == null) {
-            return null;
-        }
+        if (ride == null) return null;
         return new RideDto(
                 ride.getId(),
+                ride.getShortId(), // Mapear shortId
                 ride.getUserId(),
                 ride.getAssignedDriverId(),
                 ride.getAssignedVehicleId(),
-                ride.getServiceType(), // Enum
-                ride.getRideStatus(),   // Enum
+                ride.getServiceType(),
+                ride.getRideStatus(),
                 ride.getOriginDetails(),
                 ride.getDestinationDetails(),
                 ride.getCancellationReason(),
@@ -488,6 +469,14 @@ public class RideServiceImpl implements RideService {
                 ride.getCancelledAt(),
                 ride.getUpdatedAt()
         );
+    }
+
+    // --- Replicar Enum DriverStatus aquí o usar módulo Common ---
+    // Necesario para updateDriverStatusAsync y validateDriverCanAccept
+    // Si no quieres replicarlo, tendrías que recibir/enviar Strings de estado
+    // y convertir/comparar con Strings. Usar el Enum es más seguro.
+    private enum DriverStatus {
+        PENDING_APPROVAL, ACTIVE_OFFLINE, ACTIVE_AVAILABLE, ON_RIDE, SUSPENDED, REJECTED
     }
 
 }
